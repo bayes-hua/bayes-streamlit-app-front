@@ -4,7 +4,7 @@ from login import login_page
 from question_list_page import question_list_page
 from voting_platform_page import voting_platform_page
 from data import init_session_state, check_expired_questions
-
+from datetime import datetime
 
 def main():
     # 初始化 session state
@@ -20,7 +20,8 @@ def main():
         layout="centered"
     )
 
-    st.header(f"🎯 预测平台 ({st.session_state.username}-{st.session_state.role})",divider=True)
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M')
+    st.header(f"🎯 预测平台 ({st.session_state.username}-{st.session_state.role}) ⏰ {current_time}", divider=True)
 
     if st.session_state.authenticated:
         if st.session_state.page == "login_page":
