@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
 
+
 # 问题列表页面
 def question_list_page():
-    st.subheader("⚙️ 问题列表")
-
     # 添加创建和投票按钮
     col1, col2 = st.columns(2)
     with col1:
@@ -26,60 +25,63 @@ def question_list_page():
     with col1:
         if st.session_state.tags:
             selected_tags = st.multiselect(
-                "🏷️ 按标签筛选",
-                options=sorted(list(st.session_state.tags))
+                "🏷️ 按标签筛选", options=sorted(list(st.session_state.tags))
             )
     with col2:
         status_filter = st.radio(
-            "🔄 状态筛选",
-            ["全部", "进行中", "已结束", "过期"],
-            horizontal=True
+            "🔄 状态筛选", ["全部", "进行中", "已结束", "过期"], horizontal=True
         )
 
     # 准备表格数据
     data = []
     for q in st.session_state.questions:
         # 如果选择了标签筛选，检查问题是否包含所选标签
-        if selected_tags and not any(tag in q.get('tags', []) for tag in selected_tags):
+        if selected_tags and not any(tag in q.get("tags", []) for tag in selected_tags):
             continue
 
         # 状态筛选
-        if status_filter == "进行中" and ('winner' in q or q.get('winner') == '过期'):
+        if status_filter == "进行中" and ("winner" in q or q.get("winner") == "过期"):
             continue
-        if status_filter == "已结束" and ('winner' not in q or q.get('winner') == '过期'):
+        if status_filter == "已结束" and (
+            "winner" not in q or q.get("winner") == "过期"
+        ):
             continue
-        if status_filter == "过期" and q.get('winner') != '过期':
+        if status_filter == "过期" and q.get("winner") != "过期":
             continue
 
         # 计算总投票数
         total_positions = 0
-        if q['id'] in st.session_state.positions:
-            total_positions = sum(st.session_state.positions[q['id']].values())
+        if q["id"] in st.session_state.positions:
+            total_positions = sum(st.session_state.positions[q["id"]].values())
 
         # 获取最高概率的选项
-        max_probability_option = max(q['probabilities'].items(), key=lambda x: x[1])
+        max_probability_option = max(q["probabilities"].items(), key=lambda x: x[1])
 
         # 基础数据字典
         question_data = {
-            "标题": q['title'],
-            "状态": "过期" if q.get('winner') == '过期' else ("已结束" if 'winner' in q else "进行中"),
-            "类型": q['type'],
-            "标签": ", ".join(q.get('tags', [])),
-            "创建者": q['create_by'],
-            "创建时间": q['created_at'].strftime('%Y-%m-%d %H:%M'),
-            "过期时间": q['expire_at'].strftime('%Y-%m-%d %H:%M'),
-            "规则": q.get('rules', '暂无规则'),
+            "标题": q["title"],
+            "状态": (
+                "过期"
+                if q.get("winner") == "过期"
+                else ("已结束" if "winner" in q else "进行中")
+            ),
+            "类型": q["type"],
+            "标签": ", ".join(q.get("tags", [])),
+            "创建者": q["create_by"],
+            "创建时间": q["created_at"].strftime("%Y-%m-%d %H:%M"),
+            "过期时间": q["expire_at"].strftime("%Y-%m-%d %H:%M"),
+            "规则": q.get("rules", "暂无规则"),
             "总投票数": f"{total_positions:.2f}",
             "领先选项": max_probability_option[0],
             "领先概率": f"{max_probability_option[1]:.1%}",
-            "选项": ", ".join(q['outcomes']),
+            "选项": ", ".join(q["outcomes"]),
         }
 
         # 添加结束相关信息
-        if 'winner' in q:
-            question_data["胜出选项"] = q['winner']
-            question_data["结束用户"] = q.get('end_by', '未知')
-            question_data["结束时间"] = q['end_at'].strftime('%Y-%m-%d %H:%M')
+        if "winner" in q:
+            question_data["胜出选项"] = q["winner"]
+            question_data["结束用户"] = q.get("end_by", "未知")
+            question_data["结束时间"] = q["end_at"].strftime("%Y-%m-%d %H:%M")
 
         # 将数据添加到列表中
         data.append(question_data)
@@ -108,8 +110,5 @@ def question_list_page():
         column_config["胜出选项"] = st.column_config.TextColumn("🏆 胜出选项")
 
     st.dataframe(
-        df,
-        column_config=column_config,
-        use_container_width=True,
-        hide_index=True
+        df, column_config=column_config, use_container_width=True, hide_index=True
     )
