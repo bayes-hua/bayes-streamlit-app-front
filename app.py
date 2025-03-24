@@ -1,32 +1,18 @@
-from re import S
 import streamlit as st
 from create_question_page import create_question_page
 from login import login_page
 from question_list_page import question_list_page
 from voting_platform_page import voting_platform_page
+from data import init_session_state, check_expired_questions
 
-
-# 初始化 session state
-def init_session_state():
-    if 'authenticated' not in st.session_state:
-        st.session_state.authenticated = True
-    if 'username' not in st.session_state:
-        st.session_state.username = 'system'
-    if 'role' not in st.session_state:
-        st.session_state.role = 'user'
-    if 'page' not in st.session_state:
-        st.session_state.page = "login_page"
-    if 'questions' not in st.session_state:
-        st.session_state.questions = []
-    if 'positions' not in st.session_state:
-        st.session_state.positions = {}
-    if 'tags' not in st.session_state:
-        st.session_state.tags = set()  # 存储所有标签
-    if 'vote_history' not in st.session_state:
-        st.session_state.vote_history = []  # 存储所有投票历史
 
 def main():
+    # 初始化 session state
     init_session_state()
+
+    # 检查过期问题
+    check_expired_questions()
+
     # 设置页面配置
     st.set_page_config(
         page_title="预测平台",
@@ -35,7 +21,7 @@ def main():
     )
 
     st.header(f"🎯 预测平台 ({st.session_state.username}-{st.session_state.role})",divider=True)
-    
+
     if st.session_state.authenticated:
         if st.session_state.page == "login_page":
             st.session_state.page = "question_list_page"
@@ -50,6 +36,6 @@ def main():
         "question_list_page": question_list_page
     }
     switcher[st.session_state.page]()
-        
+
 if __name__ == "__main__":
     main()
