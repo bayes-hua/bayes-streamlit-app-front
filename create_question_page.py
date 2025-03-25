@@ -5,38 +5,70 @@ from data import save_session_data
 
 
 # 创建问题页面
+def validate_inputs(title, outcomes):
+    """验证用户输入"""
+    if not title:
+        st.write("❌ 必须要有标题")
+        return False
+
+    total_value = sum(value for _, value in outcomes)
+    if abs(total_value - 1.0) > 0.01:
+        st.write("❌ 所有选项的预测值之和必须等于1")
+        return False
+
+    return True
+
+# 创建问题数据结构
+def create_question_data(title, question_type, outcomes, rules, expire_date, expire_time, tags_input, username, end_password):
+    """创建问题数据结构"""
+    tags = [
+        tag.strip()
+        for tag in tags_input.replace("，", ",").split(",")
+        if tag.strip()
+    ]
+    st.session_state.tags.update(tags)
+
+    expire_datetime = datetime.combine(expire_date, expire_time)
+
+    return {
+        "id": str(uuid.uuid4()),
+        "title": title,
+        "type": question_type,
+        "outcomes": [outcome[0] for outcome in outcomes],
+        "rules": rules,
+        "created_at": datetime.now(),
+        "expire_at": expire_datetime,
+        "probabilities": {outcome[0]: outcome[1] for outcome in outcomes},
+        "tags": tags,
+        "create_by": username,
+        "end_password": end_password,
+    }
+
+# 创建问题页面
 def create_question_page():
     # 初始化选项计数器和问题类型
     if "extra_options" not in st.session_state:
-        st.session_state.extra_options = 2  # 默认为2个选项
+        st.session_state.extra_options = 2
     if "question_type" not in st.session_state:
-        st.session_state.question_type = "二元"  # 默认为二元
+        st.session_state.question_type = "二元"
 
-    # 标题
+    # 获取用户输入
     title = st.text_input("📝 标题 **(必填)**")
-
-    # 添加标签输入
     tags_input = st.text_input("🏷️ 标签 (用英文逗号分隔多个标签)", placeholder="")
-
-    # 添加用户名输入
     username = st.text_input("👤 创建者", value=st.session_state.username)
-
-    # 类型选择
     question_type = st.selectbox("📊 类型", ["二元", "多元"], key="question_type")
 
-    # 当问题类型改变时重置选项票数
+    # 处理问题类型变化
     if question_type != st.session_state.get("last_question_type"):
         st.session_state.last_question_type = question_type
         st.session_state.extra_options = 2 if question_type == "二元" else 3
 
-    # 显示所有选项
+    # 获取选项
     outcomes = []
     for i in range(st.session_state.extra_options):
         col1, col2 = st.columns(2)
         with col1:
-            option = st.text_input(
-                f"💫 选项{i+1}", key=f"option_{i}", value=f"选项{i+1}"
-            )
+            option = st.text_input(f"💫 选项{i+1}", key=f"option_{i}", value=f"选项{i+1}")
         with col2:
             value = st.number_input(
                 f"💯 选项{i+1}预测值",
@@ -48,76 +80,41 @@ def create_question_page():
         if option and value > 0:
             outcomes.append((option, value))
 
-    # 多元的选项控制按钮
+    # 多元选项管理
     if question_type == "多元":
         col1, col2 = st.columns(2)
         with col1:
             if st.button("添加选项", "add_btn", use_container_width=True):
                 st.session_state.extra_options += 1
         with col2:
-            if (
-                st.button(
-                    "删除选项",
-                    "del_btn",
-                    type="primary",
-                    disabled=st.session_state.extra_options <= 3,
-                    use_container_width=True,
-                )
-                and st.session_state.extra_options > 2
-            ):
+            if (st.button("删除选项", "del_btn", type="primary",
+                        disabled=st.session_state.extra_options <= 3,
+                        use_container_width=True)
+                and st.session_state.extra_options > 2):
                 st.session_state.extra_options -= 1
 
     rules = st.text_area("📋 规则（markdown）", height=150)
 
-    # 添加结束时间选择器
+    # 过期时间设置
     col1, col2 = st.columns(2)
     with col1:
-        expire_date = st.date_input(
-            "📅过期日期",
-            min_value=datetime.now().date(),
-        )
+        expire_date = st.date_input("📅过期日期", min_value=datetime.now().date())
     with col2:
         expire_time = st.time_input("⏰ 过期时间")
 
-    # 添加结束密码输入
-    end_password = st.text_input(
-        "🔑 结束密码", type="password", help="用于验证问题结束时的操作"
-    )
+    end_password = st.text_input("🔑 结束密码", type="password", help="用于验证问题结束时的操作")
 
+    # 创建问题
     if st.button("✨ 创建新问题", use_container_width=True):
-        # 验证预测值总和是否接近1
-        total_value = sum(value for _, value in outcomes)
-        if title == "":
-            st.write("❌ 必须要有标题")
-            return
-        if abs(total_value - 1.0) > 0.01:
-            st.write("❌ 所有选项的预测值之和必须等于1")
+        if not validate_inputs(title, outcomes):
             return
 
-        # 处理标签，支持中英文逗号分隔
-        tags = [
-            tag.strip()
-            for tag in tags_input.replace("，", ",").split(",")
-            if tag.strip()
-        ]
-        st.session_state.tags.update(tags)
+        question = create_question_data(
+            title, question_type, outcomes, rules,
+            expire_date, expire_time, tags_input,
+            username, end_password
+        )
 
-        # 组合日期和时间
-        expire_datetime = datetime.combine(expire_date, expire_time)
-
-        question = {
-            "id": str(uuid.uuid4()),
-            "title": title,
-            "type": question_type,
-            "outcomes": [outcome[0] for outcome in outcomes],
-            "rules": rules,
-            "created_at": datetime.now(),
-            "expire_at": expire_datetime,
-            "probabilities": {outcome[0]: outcome[1] for outcome in outcomes},
-            "tags": tags,
-            "create_by": username,
-            "end_password": end_password,
-        }
         st.session_state.questions.append(question)
         save_session_data()
         st.write("✅ 问题创建成功！")

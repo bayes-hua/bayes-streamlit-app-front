@@ -4,7 +4,6 @@ from datetime import datetime
 
 file_name = "session_data.json"
 
-
 # 解析 datetime 字符串
 def parse_datetime(data):
     if isinstance(data, dict):
@@ -21,7 +20,6 @@ def parse_datetime(data):
             if isinstance(item, (dict, list)):
                 parse_datetime(item)
     return data
-
 
 # 初始化 session state
 def init_session_state():
@@ -54,7 +52,6 @@ def init_session_state():
         if "vote_history" not in st.session_state:
             st.session_state.vote_history = []
 
-
 # 序列化 datetime 和 set 类型
 def serialize_data(obj):
     if isinstance(obj, datetime):
@@ -67,7 +64,6 @@ def serialize_data(obj):
         return [serialize_data(item) for item in obj]
     return obj
 
-
 # 保存 session state 到文件
 def save_session_data():
     data = {
@@ -79,23 +75,30 @@ def save_session_data():
     with open(file_name, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-
 # 检查过期问题
+def reset_question_probabilities(question):
+    """重置问题的概率值"""
+    total_outcomes = len(question["outcomes"])
+    initial_probability = 1.0 / total_outcomes
+    question["probabilities"] = {
+        outcome: initial_probability for outcome in question["outcomes"]
+    }
+
+# 标记问题为过期状态
+def mark_question_as_expired(question, current_time):
+    """标记问题为过期状态"""
+    question["winner"] = "过期"
+    question["end_by"] = "过期"
+    question["end_at"] = current_time
+
+# 检查并处理过期问题
 def check_expired_questions():
     """检查并处理过期问题"""
     current_time = datetime.now()
     for question in st.session_state.questions:
-        if "end_at" in question and current_time > question["end_at"]:
+        # 检查问题是否过期
+        if "expire_at" in question and current_time > question["expire_at"]:
             if "winner" not in question:  # 只处理未结束的过期问题
-                # 重置概率为初始值
-                total_outcomes = len(question["outcomes"])
-                initial_probability = 1.0 / total_outcomes
-                question["probabilities"] = {
-                    outcome: initial_probability for outcome in question["outcomes"]
-                }
-
-                # 设置过期状态
-                question["winner"] = "过期"
-                question["end_by"] = "过期"
-                question["end_at"] = current_time
+                reset_question_probabilities(question)
+                mark_question_as_expired(question, current_time)
     save_session_data()

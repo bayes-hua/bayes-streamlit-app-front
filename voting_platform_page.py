@@ -274,11 +274,47 @@ def handle_voting_operation(question):
                         save_session_data()
                         st.toast("✅ 撤票成功！", icon="🎯")
 
+# 根据状态筛选问题
+def filter_questions_by_status(questions, status_filter):
+    """根据状态筛选问题"""
+    if status_filter == "进行中":
+        return [q for q in questions if "winner" not in q]
+    elif status_filter == "已结束":
+        return [q for q in questions if "winner" in q and q.get("winner") != "过期"]
+    elif status_filter == "过期":
+        return [q for q in questions if q.get("winner") == "过期"]
+    return questions
+
+# 创建问题选择字典
+def create_question_selection_dict(filtered_questions):
+    """创建问题选择字典"""
+    return {
+        f"{q['title']} {'[过期]' if q.get('winner') == '过期' else '[已结束]' if 'winner' in q else ''}": q
+        for q in filtered_questions
+    }
+
+# 处理结束问题操作
+def handle_end_question(question):
+    """处理结束问题操作"""
+    with st.expander("🔒 结束问题"):
+        st.write("**请选择胜出选项并输入结束密码**")
+        winner = st.selectbox("胜出选项", question["outcomes"])
+        end_user = st.text_input("结束用户", value=st.session_state.username)
+        password = st.text_input("结束密码", type="password")
+        if st.button("确认结束"):
+            if password == question.get("end_password", ""):
+                question["winner"] = winner
+                question["end_at"] = datetime.now()
+                question["end_by"] = end_user
+                save_session_data()
+                st.toast(f"问题已结束，胜出选项：{winner}")
+                st.rerun()
+            else:
+                st.error("密码错误")
 
 # 投票平台页面
 def voting_platform_page():
     """投票平台页面"""
-    # 检查是否有可用的问题
     if not st.session_state.questions:
         st.warning("目前没有可用的问题")
         return
@@ -288,61 +324,25 @@ def voting_platform_page():
         "🔄 状态筛选", ["全部", "进行中", "已结束", "过期"], horizontal=True
     )
 
-    # 根据筛选条件过滤问题
-    filtered_questions = st.session_state.questions
-    if status_filter == "进行中":
-        filtered_questions = [q for q in filtered_questions if "winner" not in q]
-    elif status_filter == "已结束":
-        filtered_questions = [
-            q for q in filtered_questions if "winner" in q and q.get("winner") != "过期"
-        ]
-    elif status_filter == "过期":
-        filtered_questions = [
-            q for q in filtered_questions if q.get("winner") == "过期"
-        ]
-
-    # 选择问题
-    questions_with_status = {
-        f"{m['title']} {'[过期]' if m.get('winner') == '过期' else '[已结束]' if 'winner' in m else ''}": m
-        for m in filtered_questions
-    }
+    # 筛选问题
+    filtered_questions = filter_questions_by_status(st.session_state.questions, status_filter)
+    questions_with_status = create_question_selection_dict(filtered_questions)
 
     if not questions_with_status:
         st.warning("没有符合条件的问题")
         return
 
-    selected_question_title = st.selectbox(
-        "选择问题", list(questions_with_status.keys())
-    )
-
-    # 直接从字典中获取选中的问题
+    # 选择问题
+    selected_question_title = st.selectbox("选择问题", list(questions_with_status.keys()))
     question = questions_with_status[selected_question_title]
 
     # 显示问题信息
     with st.container(border=True):
         display_question_info(question)
 
-    # 只在问题未结束时显示投票操作
+    # 处理未结束问题的操作
     if "winner" not in question:
-        # 结束问题的expander
-        with st.expander("🔒 结束问题"):
-            st.write("**请选择胜出选项并输入结束密码**")
-            winner = st.selectbox("胜出选项", question["outcomes"])
-            end_user = st.text_input("结束用户", value=st.session_state.username)
-            password = st.text_input("结束密码", type="password")
-            if st.button("确认结束"):
-                if password == question.get("end_password", ""):
-                    question["winner"] = winner
-                    question["end_at"] = datetime.now()
-                    question["end_by"] = end_user
-                    save_session_data()
-                    st.toast(f"问题已结束，胜出选项：{winner}")
-                    st.rerun()
-                else:
-                    st.error("密码错误")
-
-    # 交易部分
-    if "winner" not in question:
+        handle_end_question(question)
         with st.container(border=True):
             handle_voting_operation(question)
 
