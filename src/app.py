@@ -38,7 +38,7 @@ def render_header():
           st.text(f"👤 {st.session_state.username} ({st.session_state.role})")
         st.caption(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     with col2:
-          if not st.session_state.page == "change_password_page":
+          if not st.session_state.page == "change_password_page" and st.session_state.authenticated:
             if st.button("🔑 修改密码", help="修改当前用户密码", type="secondary"):
               st.session_state.page = "change_password_page"
               st.rerun()
