@@ -1,10 +1,12 @@
 import streamlit as st
-from create_question_page import create_question_page
-from login import login_page
-from question_list_page import question_list_page
-from voting_platform_page import voting_platform_page
-from data import init_session_state, check_expired_questions
-from datetime import datetime
+from views.create_question_page import create_question_page
+from views.login_page import login_page, logout
+from views.question_list_page import question_list_page
+from views.voting_platform_page import voting_platform_page
+from views.change_password_page import change_password_page
+from data import init_database, init_session_state, check_expired_questions
+from datetime import datetime, timezone, timedelta
+
 
 # 获取页面配置
 def get_page_config():
@@ -14,26 +16,36 @@ def get_page_config():
         "create_question_page": {"func": create_question_page, "title": "创建问题"},
         "voting_platform_page": {"func": voting_platform_page, "title": "参与投票"},
         "question_list_page": {"func": question_list_page, "title": "问题列表"},
+        "change_password_page": {"func": change_password_page, "title": "修改密码"},
     }
+
 
 # 处理页面导航逻辑
 def handle_page_navigation():
     """处理页面导航逻辑"""
     if st.session_state.authenticated:
-        if st.session_state.page == "login_page":
-            st.session_state.page = "question_list_page"
+      if st.session_state.page == "login_page": st.session_state.page = "question_list_page"
     else:
-        st.session_state.page = "login_page"
+      st.session_state.page = "login_page"
+
 
 # 渲染页面头部
 def render_header():
     """渲染页面头部"""
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns([3,1,1])
     with col1:
-        st.caption(f"👤 {st.session_state.username} ({st.session_state.role})")
-    with col2:
+        if st.session_state.authenticated:
+          st.text(f"👤 {st.session_state.username} ({st.session_state.role})")
         st.caption(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    st.text("")
+    with col2:
+          if not st.session_state.page == "change_password_page":
+            if st.button("🔑 修改密码", help="修改当前用户密码", type="secondary"):
+              st.session_state.page = "change_password_page"
+              st.rerun()
+    with col3:
+        if st.session_state.authenticated:
+          st.button("🔒 登出", on_click=logout, help="登出当前用户", type="secondary")
+
 
 # 渲染返回按钮
 def render_back_button(current_page):
@@ -43,7 +55,10 @@ def render_back_button(current_page):
             st.session_state.page = "question_list_page"
             st.rerun()
 
+
 def main():
+    # init
+    init_database()
     # 初始化 session state
     init_session_state()
 
@@ -71,6 +86,7 @@ def main():
 
     # 执行当前页面函数
     current_page["func"]()
+
 
 if __name__ == "__main__":
     main()
